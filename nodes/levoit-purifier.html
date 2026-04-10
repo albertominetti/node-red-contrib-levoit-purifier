@@ -1,0 +1,155 @@
+<script type="text/javascript">
+  RED.nodes.registerType('levoit-purifier', {
+    category: 'smart home',
+    color: '#78c1a5',
+    icon: 'font-awesome/fa-wind',
+    defaults: {
+      name: { value: '' },
+      account: { value: '', type: 'levoit-config', required: true },
+      deviceCid: { value: '' },
+      configModule: { value: '' },
+      deviceName: { value: '' },
+      pollInterval: { value: 60 },
+    },
+    inputs: 1,
+    outputs: 1,
+    paletteLabel: 'levoit purifier',
+    label: function () {
+      return this.name || this.deviceName || 'Levoit Purifier';
+    },
+    oneditprepare: function () {
+      var node = this;
+      var deviceSelect = $('#node-input-deviceCid');
+      var refreshBtn = $('#levoit-refresh-devices');
+      var statusEl = $('#levoit-device-status');
+
+      function loadDevices() {
+        var configId = $('#node-input-account').val();
+        if (!configId || configId === '_ADD_') {
+          deviceSelect.empty().append('<option value="">-- Deploy config first --</option>');
+          return;
+        }
+
+        statusEl.text('Loading devices...').css('color', '#666');
+        deviceSelect.empty().append('<option value="">Loading...</option>');
+
+        $.getJSON('levoit/devices?configId=' + configId, function (devices) {
+          deviceSelect.empty();
+          if (!devices || devices.length === 0) {
+            deviceSelect.append('<option value="">-- No devices found --</option>');
+            statusEl.text('No devices found. Deploy config node first.').css('color', 'orange');
+            return;
+          }
+
+          deviceSelect.append('<option value="">-- Select device --</option>');
+          devices.forEach(function (d) {
+            var label = d.name + ' (' + d.type + ')' + (d.online ? ' ●' : ' ○');
+            var opt = $('<option></option>')
+              .val(d.cid)
+              .text(label)
+              .data('configModule', d.configModule)
+              .data('deviceName', d.name);
+            if (d.cid === node.deviceCid) {
+              opt.prop('selected', true);
+            }
+            deviceSelect.append(opt);
+          });
+
+          statusEl.text(devices.length + ' device(s) found').css('color', 'green');
+        }).fail(function () {
+          deviceSelect.empty().append('<option value="">-- Error loading --</option>');
+          statusEl.text('Failed to load devices. Is the config node deployed?').css('color', 'red');
+        });
+      }
+
+      // When device selection changes, update hidden fields
+      deviceSelect.on('change', function () {
+        var selected = $(this).find(':selected');
+        $('#node-input-configModule').val(selected.data('configModule') || '');
+        $('#node-input-deviceName').val(selected.data('deviceName') || '');
+      });
+
+      // Refresh button
+      refreshBtn.on('click', loadDevices);
+
+      // Load devices when config node changes
+      $('#node-input-account').on('change', function () {
+        setTimeout(loadDevices, 200);
+      });
+
+      // Initial load
+      loadDevices();
+    },
+  });
+</script>
+
+<script type="text/html" data-template-name="levoit-purifier">
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name" />
+  </div>
+  <div class="form-row">
+    <label for="node-input-account"><i class="fa fa-user"></i> Account</label>
+    <input type="text" id="node-input-account" />
+  </div>
+  <div class="form-row">
+    <label for="node-input-deviceCid"><i class="fa fa-microchip"></i> Device</label>
+    <select id="node-input-deviceCid" style="width:60%">
+      <option value="">-- Select device --</option>
+    </select>
+    <button type="button" id="levoit-refresh-devices" class="red-ui-button" style="margin-left:5px">
+      <i class="fa fa-refresh"></i>
+    </button>
+    <div id="levoit-device-status" style="font-size:11px; margin-top:4px; padding-left:105px;"></div>
+  </div>
+  <input type="hidden" id="node-input-configModule" />
+  <input type="hidden" id="node-input-deviceName" />
+  <div class="form-row">
+    <label for="node-input-pollInterval"><i class="fa fa-clock-o"></i> Poll (sec)</label>
+    <input type="number" id="node-input-pollInterval" min="0" max="3600" step="10" style="width:80px" />
+    <span style="font-size:11px; color:#666; margin-left:5px">0 = disabled</span>
+  </div>
+
+  <div style="background:#fff8dc; border:1px solid #e6d590; border-radius:4px; padding:12px 16px; margin-top:16px; font-size:12px; line-height:1.6; color:#5a4e00;">
+    <p style="margin-top:0;"><strong>Disclaimer:</strong> This software is NOT an official Levoit or VeSync product. It is provided "AS IS" without warranty of any kind.</p>
+    <p>The VeSync cloud API used by this node is not officially documented or supported for third-party use. Its availability and behavior are entirely controlled by VeSync and may change without notice at any time. The consequences of frequent or continuous API polling are unknown.</p>
+    <p>By using this software, you acknowledge and agree that:</p>
+    <ul style="margin:4px 0 8px 16px; padding:0;">
+      <li>The author assumes NO liability for any damages, loss of warranty, or other consequences whatsoever</li>
+      <li>You waive all claims for compensation arising from its use</li>
+      <li>You accept full responsibility for any decisions made based on information provided by this software</li>
+      <li>Device readings and status information may be inaccurate due to API changes, network errors, or firmware differences</li>
+      <li>Your VeSync account credentials are stored locally in Node-RED and transmitted only to VeSync servers</li>
+    </ul>
+    <p>This node communicates exclusively via VeSync's cloud API. No local network access to the purifier is used. VeSync may revoke API access, change authentication methods, or modify device protocols at any time.</p>
+    <p style="margin-bottom:0;"><strong>By your first use of this software, you irrevocably accept all of the above terms.</strong></p>
+    <p style="margin-bottom:0; margin-top:8px; font-size:11px; color:#7a6e20;">Levoit and VeSync are registered trademarks of VeSync Co., Ltd.</p>
+  </div>
+</script>
+
+<script type="text/html" data-help-name="levoit-purifier">
+  <p>Controls a Levoit air purifier via the VeSync cloud API.</p>
+
+  <h3>Input</h3>
+  <p>Send a message to control the purifier:</p>
+  <ul>
+    <li><code>msg.payload = "on"</code> — Turn on</li>
+    <li><code>msg.payload = "off"</code> — Turn off</li>
+    <li><code>msg.payload = { action: "speed", value: 2 }</code> — Set fan speed (1-4)</li>
+    <li><code>msg.payload = { action: "mode", value: "auto" }</code> — Set mode (manual/auto/sleep)</li>
+    <li><code>msg.payload = "status"</code> — Poll current status</li>
+    <li><code>msg.payload = "display_on"</code> / <code>"display_off"</code> — Toggle display</li>
+    <li><code>msg.payload = "child_lock_on"</code> / <code>"child_lock_off"</code> — Toggle child lock</li>
+  </ul>
+
+  <h3>Output</h3>
+  <p>Outputs the current device status as <code>msg.payload</code> after every command and on each poll interval.</p>
+  <p>Status includes: <code>powerSwitch</code>, <code>workMode</code>, <code>fanSpeedLevel</code>,
+     <code>PM25</code>, <code>filterLifePercent</code>, <code>screenSwitch</code>, <code>childLockSwitch</code>.</p>
+
+  <h3>Configuration</h3>
+  <p>Select a Levoit account (config node) and choose a device from the dropdown.
+     The device list is fetched dynamically from the VeSync API. Make sure to <strong>deploy</strong>
+     the config node first before selecting a device.</p>
+  <p>Poll interval sets how often (in seconds) the node queries device status. Set to 0 to disable auto-polling.</p>
+</script>

@@ -1,0 +1,98 @@
+<script type="text/javascript">
+  RED.nodes.registerType('levoit-config', {
+    category: 'config',
+    defaults: {
+      name: { value: 'Levoit', required: true },
+      region: { value: 'EU', required: true },
+      timeZone: { value: 'Europe/Prague' },
+    },
+    credentials: {
+      email: { type: 'text' },
+      password: { type: 'password' },
+    },
+    label: function () {
+      return this.name || 'Levoit';
+    },
+    oneditprepare: function () {
+      var node = this;
+
+      $('#levoit-test-btn').on('click', function () {
+        var btn = $(this);
+        var statusEl = $('#levoit-test-status');
+        btn.prop('disabled', true);
+        statusEl.text('Connecting...').css('color', '#666');
+
+        $.ajax({
+          url: 'levoit/test-credentials',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({
+            email: $('#node-config-input-email').val(),
+            password: $('#node-config-input-password').val(),
+            region: $('#node-config-input-region').val(),
+            timeZone: $('#node-config-input-timeZone').val(),
+          }),
+          success: function (resp) {
+            btn.prop('disabled', false);
+            if (resp.success) {
+              statusEl
+                .text(
+                  '✓ Connected! Account: ' +
+                    resp.accountId +
+                    ', Region: ' +
+                    resp.region +
+                    ', Devices: ' +
+                    resp.deviceCount
+                )
+                .css('color', 'green');
+            } else {
+              statusEl.text('✗ Failed: ' + resp.error).css('color', 'red');
+            }
+          },
+          error: function () {
+            btn.prop('disabled', false);
+            statusEl.text('✗ Request error').css('color', 'red');
+          },
+        });
+      });
+    },
+  });
+</script>
+
+<script type="text/html" data-template-name="levoit-config">
+  <div class="form-row">
+    <label for="node-config-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-config-input-name" placeholder="Levoit" />
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-email"><i class="fa fa-envelope"></i> Email</label>
+    <input type="text" id="node-config-input-email" placeholder="your@email.com" />
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-password"><i class="fa fa-lock"></i> Password</label>
+    <input type="password" id="node-config-input-password" />
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-region"><i class="fa fa-globe"></i> Region</label>
+    <select id="node-config-input-region">
+      <option value="EU">Europe (smartapi.vesync.eu)</option>
+      <option value="US">US / Other (smartapi.vesync.com)</option>
+    </select>
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-timeZone"><i class="fa fa-clock-o"></i> Timezone</label>
+    <input type="text" id="node-config-input-timeZone" placeholder="Europe/Prague" />
+  </div>
+  <div class="form-row">
+    <button type="button" id="levoit-test-btn" class="red-ui-button" style="width:auto">
+      <i class="fa fa-plug"></i> Test Connection
+    </button>
+    <span id="levoit-test-status" style="margin-left:10px; font-size:12px;"></span>
+  </div>
+</script>
+
+<script type="text/html" data-help-name="levoit-config">
+  <p>Configuration node for Levoit account credentials.</p>
+  <p>Enter your Levoit app email and password. Select the correct region — European accounts use the EU server.</p>
+  <p>Use the <strong>Test Connection</strong> button to verify credentials and discover devices before deploying.</p>
+</script>
