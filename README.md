@@ -19,7 +19,7 @@ Node-RED node for controlling **Levoit air purifiers** via the VeSync cloud API.
 | Vital 100S (LAP-V102S) | ✅ |
 | Vital 200S | Should work |
 | Core 200S | Should work |
-| Core 300S | Should work |
+| Core 300S | ✅ |
 | Core 400S | Should work |
 | Core 600S | Should work |
 
